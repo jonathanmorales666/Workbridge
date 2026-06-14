@@ -1,78 +1,112 @@
 import javax.swing.*;
-import javax.swing.table.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.sql.*;
 
-public class VerificacionEmpresas extends JFrame {
+public class VerificacionEmpresas extends JPanel {
 
     private final Color COLOR_MENU   = Color.decode("#243A69");
-    private final Color COLOR_SEC    = Color.decode("#5B88A5");
-    private final Color COLOR_ACENTO = Color.decode("#9B73A6");
-    private final Color COLOR_FONDO  = Color.decode("#D4CDC5");
     private final Color COLOR_BLANCO = Color.WHITE;
 
+    private DefaultTableModel modeloTabla;
+    private JTable tabla;
+
     public VerificacionEmpresas() {
-        setTitle("Work Bridge - Verificación de Empresas");
-        setSize(1400, 900);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
         setLayout(new BorderLayout());
-
-        add(crearSidebarAdmin("Empresas"), BorderLayout.WEST);
-
-        JPanel contenido = new JPanel();
-        contenido.setBackground(new Color(245, 247, 250));
-        contenido.setLayout(null);
+        setBackground(new Color(245, 247, 250));
 
         JLabel lblTitulo = new JLabel("Verificación de Empresas");
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        lblTitulo.setBounds(30, 15, 500, 35);
-        contenido.add(lblTitulo);
+        lblTitulo.setBorder(BorderFactory.createEmptyBorder(15, 30, 10, 0));
+        add(lblTitulo, BorderLayout.NORTH);
 
-        add(contenido, BorderLayout.CENTER);
+        String[] columnas = {"ID", "Empresa", "NIT", "Sector", "Estado"};
+        modeloTabla = new DefaultTableModel(columnas, 0) {
+            public boolean isCellEditable(int r, int c) { return false; }
+        };
+        tabla = new JTable(modeloTabla);
+        tabla.setRowHeight(28);
+        tabla.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tabla.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tabla.getTableHeader().setBackground(COLOR_MENU);
+        tabla.getTableHeader().setForeground(COLOR_BLANCO);
+
+        JScrollPane scroll = new JScrollPane(tabla);
+        scroll.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+
+        // Botones
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
+        panelBotones.setBackground(new Color(245, 247, 250));
+
+        JButton btnVerificar = new JButton("✔ Verificar");
+        btnVerificar.setBackground(new Color(34, 139, 34));
+        btnVerificar.setForeground(COLOR_BLANCO);
+        btnVerificar.setBorderPainted(false);
+
+        JButton btnRechazar = new JButton("✘ Rechazar");
+        btnRechazar.setBackground(new Color(180, 40, 40));
+        btnRechazar.setForeground(COLOR_BLANCO);
+        btnRechazar.setBorderPainted(false);
+
+        JButton btnRefrescar = new JButton("↺ Refrescar");
+        btnRefrescar.setBorderPainted(false);
+
+        panelBotones.add(btnVerificar);
+        panelBotones.add(btnRechazar);
+        panelBotones.add(btnRefrescar);
+
+        add(scroll, BorderLayout.CENTER);
+        add(panelBotones, BorderLayout.SOUTH);
+
+        cargarEmpresas();
+
+        btnVerificar.addActionListener(e -> cambiarEstado("verificada"));
+        btnRechazar.addActionListener(e -> cambiarEstado("rechazada"));
+        btnRefrescar.addActionListener(e -> cargarEmpresas());
     }
 
-    private JPanel crearSidebarAdmin(String activo) {
-        JPanel sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(230, 900));
-        sidebar.setBackground(COLOR_MENU);
-        sidebar.setLayout(null);
-
-        JLabel logo = new JLabel("<html><b><font color='white' size='13'>Work<br>Bridge</font></b></html>");
-        logo.setBounds(20, 20, 160, 60);
-        sidebar.add(logo);
-
-        String[] items = {"Dashboard", "Reportes"};
-        int y = 118;
-        for (String item : items) {
-            JButton btn = crearBtn(item, item.equals(activo));
-            btn.setBounds(10, y, 210, 36);
-            sidebar.add(btn);
-            y += 44;
+    private void cargarEmpresas() {
+        modeloTabla.setRowCount(0);
+        String sql = "SELECT id, nombre_empresa, nit, sector, estado_verificacion FROM empresas ORDER BY creado_en DESC";
+        try (Connection con = ConexionDB.getConexion();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                modeloTabla.addRow(new Object[]{
+                    rs.getString("id"),
+                    rs.getString("nombre_empresa"),
+                    rs.getString("nit"),
+                    rs.getString("sector"),
+                    rs.getString("estado_verificacion")
+                });
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
         }
-
-        return sidebar;
     }
 
-    private JButton crearBtn(String texto, boolean activo) {
-        JButton btn = new JButton(texto);
-        btn.setBackground(activo ? COLOR_ACENTO : COLOR_MENU);
-        btn.setForeground(Color.WHITE);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setHorizontalAlignment(SwingConstants.LEFT);
-        btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        return btn;
+    private void cambiarEstado(String nuevoEstado) {
+        int fila = tabla.getSelectedRow();
+        if (fila < 0) { JOptionPane.showMessageDialog(this, "Selecciona una empresa de la lista."); return; }
+        String id = (String) modeloTabla.getValueAt(fila, 0);
+        String sql = "UPDATE empresas SET estado_verificacion = ?, verificado_en = NOW() WHERE id = ?";
+        try (Connection con = ConexionDB.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, nuevoEstado);
+            ps.setString(2, id);
+            ps.executeUpdate();
+            cargarEmpresas();
+            JOptionPane.showMessageDialog(this, "Empresa marcada como: " + nuevoEstado);
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+        }
     }
 
     public static void main(String[] args) {
-        try {
-            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (Exception e) {}
-        SwingUtilities.invokeLater(() -> new VerificacionEmpresas().setVisible(true));
+        JFrame f = new JFrame("Verificación Empresas");
+        f.setSize(1000, 600);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.add(new VerificacionEmpresas());
+        f.setVisible(true);
     }
 }

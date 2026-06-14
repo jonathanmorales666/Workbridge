@@ -1,73 +1,67 @@
 import javax.swing.*;
-import javax.swing.table.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.sql.*;
 
-public class GestionDocumentos extends JFrame {
+public class GestionDocumentos extends JPanel {
 
     private final Color COLOR_MENU   = Color.decode("#243A69");
-    private final Color COLOR_SEC    = Color.decode("#5B88A5");
-    private final Color COLOR_ACENTO = Color.decode("#9B73A6");
-    private final Color COLOR_FONDO  = Color.decode("#D4CDC5");
     private final Color COLOR_BLANCO = Color.WHITE;
 
+    private DefaultTableModel modeloTabla;
+
     public GestionDocumentos() {
-        setTitle("Work Bridge - Mis Documentos");
-        setSize(1400, 900);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
         setLayout(new BorderLayout());
-
-        add(crearSidebar("Documentos"), BorderLayout.WEST);
-
-        JPanel contenido = new JPanel();
-        contenido.setBackground(new Color(245, 247, 250));
-        contenido.setLayout(null);
+        setBackground(new Color(245, 247, 250));
 
         JLabel lblTitulo = new JLabel("Mis Documentos");
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        lblTitulo.setBounds(30, 15, 400, 35);
-        contenido.add(lblTitulo);
+        lblTitulo.setBorder(BorderFactory.createEmptyBorder(15, 30, 10, 0));
+        add(lblTitulo, BorderLayout.NORTH);
 
-        add(contenido, BorderLayout.CENTER);
+        String[] columnas = {"Tipo", "Nombre de archivo", "Fecha de subida", "URL"};
+        modeloTabla = new DefaultTableModel(columnas, 0) {
+            public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable tabla = new JTable(modeloTabla);
+        tabla.setRowHeight(28);
+        tabla.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tabla.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tabla.getTableHeader().setBackground(COLOR_MENU);
+        tabla.getTableHeader().setForeground(COLOR_BLANCO);
+
+        JScrollPane scroll = new JScrollPane(tabla);
+        scroll.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
+        add(scroll, BorderLayout.CENTER);
+
+        cargarDocumentos();
     }
 
-    private JPanel crearSidebar(String activo) {
-        JPanel sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(230, 900));
-        sidebar.setBackground(COLOR_MENU);
-        sidebar.setLayout(null);
-
-        JLabel logo = new JLabel("<html><b><font color='white' size='13'>Work<br>Bridge</font></b></html>");
-        logo.setBounds(20, 20, 160, 60);
-        sidebar.add(logo);
-
-        String[] items = {"Inicio", "Mi perfil", "Buscar Vacantes", "Mis postulaciones", "Entrevistas", "Notificaciones", "Documentos"};
-        int y = 110;
-        for (String item : items) {
-            JButton btn = new JButton(item);
-            btn.setBounds(10, y, 210, 36);
-            btn.setBackground(item.equals(activo) ? COLOR_ACENTO : COLOR_MENU);
-            btn.setForeground(Color.WHITE);
-            btn.setBorderPainted(false);
-            btn.setFocusPainted(false);
-            btn.setHorizontalAlignment(SwingConstants.LEFT);
-            btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-            sidebar.add(btn);
-            y += 44;
+    private void cargarDocumentos() {
+        modeloTabla.setRowCount(0);
+        // En integración real, filtrar con WHERE usuario_id = ? del usuario logueado
+        String sql = "SELECT tipo, nombre_archivo, subido_en, url FROM documentos ORDER BY subido_en DESC";
+        try (Connection con = ConexionDB.getConexion();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                modeloTabla.addRow(new Object[]{
+                    rs.getString("tipo"),
+                    rs.getString("nombre_archivo"),
+                    rs.getTimestamp("subido_en"),
+                    rs.getString("url")
+                });
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error al cargar documentos: " + ex.getMessage());
         }
-
-        return sidebar;
     }
 
     public static void main(String[] args) {
-        try {
-            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (Exception e) {}
-        SwingUtilities.invokeLater(() -> new GestionDocumentos().setVisible(true));
+        JFrame f = new JFrame("Mis Documentos");
+        f.setSize(1000, 600);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.add(new GestionDocumentos());
+        f.setVisible(true);
     }
 }

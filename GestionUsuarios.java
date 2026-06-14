@@ -1,81 +1,72 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.sql.*;
 
-public class GestionUsuarios extends JFrame {
+public class GestionUsuarios extends JPanel {
+
+    private final Color COLOR_MENU   = Color.decode("#243A69");
+    private final Color COLOR_BLANCO = Color.WHITE;
+
+    private DefaultTableModel modeloTabla;
 
     public GestionUsuarios() {
-        Color BEIGE = Color.decode("#D4CDC5");
-        Color AZUL_CLARO = Color.decode("#5B88A5");
-        Color AZUL_OSCURO = Color.decode("#243A69");
-        Color MORADO = Color.decode("#9B73A6");
+        setLayout(new BorderLayout());
+        setBackground(Color.WHITE);
 
-        setTitle("Gestión de Usuarios");
-        setSize(1920, 1080);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        setLayout(null);
-
-        JPanel menu = new JPanel();
-        menu.setLayout(null);
-        menu.setBounds(0, 0, 350, 1080);
-        menu.setBackground(AZUL_OSCURO);
-
-        JLabel logo = new JLabel();
-        logo.setBounds(25, 20, 300, 130);
-        menu.add(logo);
-
-        String[] botones = {
-                "Inicio",
-                "Mi perfil",
-                "Buscar Vacantes",
-                "Mis postulaciones",
-                "Entrevistas",
-                "Notificaciones",
-                "Documentos"
-        };
-
-        int y = 180;
-
-        for (String texto : botones) {
-            JButton btn = new JButton(texto);
-            btn.setBounds(20, y, 280, 40);
-            btn.setBackground(AZUL_OSCURO);
-            btn.setForeground(Color.WHITE);
-            btn.setBorderPainted(false);
-            btn.setFocusPainted(false);
-            btn.setFont(new Font("Segoe UI", Font.PLAIN, 20));
-            menu.add(btn);
-            y += 50;
-        }
-
-        add(menu);
-
-        JPanel principal = new JPanel();
-        principal.setLayout(null);
-        principal.setBounds(350, 0, 1570, 1080);
-        principal.setBackground(Color.WHITE);
-
-        JPanel superior = new JPanel();
-        superior.setLayout(null);
-        superior.setBounds(0, 0, 1570, 70);
-        superior.setBackground(BEIGE);
-
+        JPanel superior = new JPanel(null);
+        superior.setBackground(Color.decode("#D4CDC5"));
+        superior.setPreferredSize(new Dimension(0, 70));
         JLabel titulo = new JLabel("Gestión de Usuarios");
         titulo.setFont(new Font("Segoe UI", Font.BOLD, 24));
-        titulo.setBounds(30, 20, 300, 30);
-
+        titulo.setBounds(30, 20, 400, 30);
         superior.add(titulo);
-        principal.add(superior);
+        add(superior, BorderLayout.NORTH);
 
-        add(principal);
+        String[] columnas = {"ID", "Nombre", "Apellido", "Correo", "Rol", "Registrado en"};
+        modeloTabla = new DefaultTableModel(columnas, 0) {
+            public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable tabla = new JTable(modeloTabla);
+        tabla.setRowHeight(28);
+        tabla.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tabla.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tabla.getTableHeader().setBackground(COLOR_MENU);
+        tabla.getTableHeader().setForeground(COLOR_BLANCO);
 
-        setVisible(true);
+        JScrollPane scroll = new JScrollPane(tabla);
+        scroll.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
+        add(scroll, BorderLayout.CENTER);
+
+        cargarUsuarios();
+    }
+
+    private void cargarUsuarios() {
+        modeloTabla.setRowCount(0);
+        String sql = "SELECT id, nombre, apellido, email, rol, creado_en FROM usuarios ORDER BY creado_en DESC";
+        try (Connection con = ConexionDB.getConexion();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                modeloTabla.addRow(new Object[]{
+                    rs.getString("id"),
+                    rs.getString("nombre"),
+                    rs.getString("apellido"),
+                    rs.getString("email"),
+                    rs.getString("rol"),
+                    rs.getTimestamp("creado_en")
+                });
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error al cargar usuarios: " + ex.getMessage());
+        }
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new GestionUsuarios();
-        });
+        JFrame f = new JFrame("Gestión de Usuarios");
+        f.setSize(1200, 700);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.add(new GestionUsuarios());
+        f.setVisible(true);
     }
 }

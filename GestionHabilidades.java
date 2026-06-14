@@ -1,78 +1,127 @@
 import javax.swing.*;
-import javax.swing.table.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.sql.*;
+import java.util.UUID;
 
-public class GestionHabilidades extends JFrame {
+public class GestionHabilidades extends JPanel {
 
     private final Color COLOR_MENU   = Color.decode("#243A69");
-    private final Color COLOR_SEC    = Color.decode("#5B88A5");
     private final Color COLOR_ACENTO = Color.decode("#9B73A6");
-    private final Color COLOR_FONDO  = Color.decode("#D4CDC5");
     private final Color COLOR_BLANCO = Color.WHITE;
 
+    private DefaultTableModel modeloTabla;
+    private JTextField tfNombre, tfCategoria;
+
     public GestionHabilidades() {
-        setTitle("Work Bridge - Gestión de Habilidades");
-        setSize(1400, 900);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
         setLayout(new BorderLayout());
-
-        add(crearSidebarAdmin(), BorderLayout.WEST);
-
-        JPanel contenido = new JPanel();
-        contenido.setBackground(new Color(245, 247, 250));
-        contenido.setLayout(null);
+        setBackground(new Color(245, 247, 250));
 
         JLabel lblTitulo = new JLabel("Gestión de Habilidades");
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        lblTitulo.setBounds(30, 15, 500, 35);
-        contenido.add(lblTitulo);
+        lblTitulo.setBorder(BorderFactory.createEmptyBorder(15, 30, 10, 0));
+        add(lblTitulo, BorderLayout.NORTH);
 
-        add(contenido, BorderLayout.CENTER);
+        // Formulario agregar
+        JPanel panelForm = new JPanel(null);
+        panelForm.setBackground(COLOR_BLANCO);
+        panelForm.setPreferredSize(new Dimension(0, 80));
+
+        JLabel lblN = new JLabel("Habilidad:"); lblN.setBounds(20, 25, 80, 25); panelForm.add(lblN);
+        tfNombre = new JTextField(); tfNombre.setBounds(105, 25, 200, 30); panelForm.add(tfNombre);
+
+        JLabel lblC = new JLabel("Categoría:"); lblC.setBounds(320, 25, 80, 25); panelForm.add(lblC);
+        tfCategoria = new JTextField(); tfCategoria.setBounds(405, 25, 200, 30); panelForm.add(tfCategoria);
+
+        JButton btnAgregar = new JButton("Agregar");
+        btnAgregar.setBounds(620, 25, 110, 30);
+        btnAgregar.setBackground(COLOR_MENU);
+        btnAgregar.setForeground(COLOR_BLANCO);
+        btnAgregar.setBorderPainted(false);
+        panelForm.add(btnAgregar);
+
+        add(panelForm, BorderLayout.NORTH);  // reemplaza el norte con este panel
+
+        // Tabla
+        String[] columnas = {"ID", "Nombre", "Categoría"};
+        modeloTabla = new DefaultTableModel(columnas, 0) {
+            public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable tabla = new JTable(modeloTabla);
+        tabla.setRowHeight(28);
+        tabla.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tabla.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tabla.getTableHeader().setBackground(COLOR_MENU);
+        tabla.getTableHeader().setForeground(COLOR_BLANCO);
+
+        JPanel centro = new JPanel(new BorderLayout());
+        JLabel lbl2 = new JLabel("Gestión de Habilidades");
+        lbl2.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        lbl2.setBorder(BorderFactory.createEmptyBorder(15, 30, 5, 0));
+        centro.add(lbl2, BorderLayout.NORTH);
+        centro.add(panelForm, BorderLayout.CENTER);
+        JScrollPane scroll = new JScrollPane(tabla);
+        scroll.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
+
+        setLayout(new BorderLayout());
+        add(lbl2, BorderLayout.NORTH);
+
+        JPanel contenedor = new JPanel(new BorderLayout());
+        contenedor.add(panelForm, BorderLayout.NORTH);
+        contenedor.add(scroll, BorderLayout.CENTER);
+        add(contenedor, BorderLayout.CENTER);
+
+        cargarHabilidades();
+
+        btnAgregar.addActionListener(e -> {
+            String nombre    = tfNombre.getText().trim();
+            String categoria = tfCategoria.getText().trim();
+            if (nombre.isEmpty()) { JOptionPane.showMessageDialog(this, "Escribe el nombre de la habilidad."); return; }
+            agregarHabilidad(nombre, categoria);
+        });
     }
 
-    private JPanel crearSidebarAdmin() {
-        JPanel sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(230, 900));
-        sidebar.setBackground(COLOR_MENU);
-        sidebar.setLayout(null);
-
-        JLabel logo = new JLabel("<html><b><font color='white' size='13'>Work<br>Bridge</font></b></html>");
-        logo.setBounds(20, 20, 160, 60);
-        sidebar.add(logo);
-
-        String[] items = {"Dashboard", "Reportes"};
-        int y = 118;
-        for (String item : items) {
-            JButton btn = crearBtn(item, false);
-            btn.setBounds(10, y, 210, 36);
-            sidebar.add(btn);
-            y += 44;
+    private void cargarHabilidades() {
+        modeloTabla.setRowCount(0);
+        String sql = "SELECT id, nombre, categoria FROM habilidades ORDER BY categoria, nombre";
+        try (Connection con = ConexionDB.getConexion();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                modeloTabla.addRow(new Object[]{
+                    rs.getString("id"),
+                    rs.getString("nombre"),
+                    rs.getString("categoria")
+                });
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error al cargar habilidades: " + ex.getMessage());
         }
-
-        return sidebar;
     }
 
-    private JButton crearBtn(String texto, boolean activo) {
-        JButton btn = new JButton(texto);
-        btn.setBackground(activo ? COLOR_ACENTO : COLOR_MENU);
-        btn.setForeground(Color.WHITE);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setHorizontalAlignment(SwingConstants.LEFT);
-        btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        return btn;
+    private void agregarHabilidad(String nombre, String categoria) {
+        String sql = "INSERT INTO habilidades (id, nombre, categoria) VALUES (?, ?, ?)";
+        try (Connection con = ConexionDB.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, UUID.randomUUID().toString());
+            ps.setString(2, nombre);
+            ps.setString(3, categoria.isEmpty() ? null : categoria);
+            ps.executeUpdate();
+            tfNombre.setText("");
+            tfCategoria.setText("");
+            cargarHabilidades();
+        } catch (SQLIntegrityConstraintViolationException ex) {
+            JOptionPane.showMessageDialog(this, "Esa habilidad ya existe.");
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+        }
     }
 
     public static void main(String[] args) {
-        try {
-            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (Exception e) {}
-        SwingUtilities.invokeLater(() -> new GestionHabilidades().setVisible(true));
+        JFrame f = new JFrame("Habilidades");
+        f.setSize(900, 600);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.add(new GestionHabilidades());
+        f.setVisible(true);
     }
 }

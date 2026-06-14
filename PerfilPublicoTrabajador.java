@@ -1,72 +1,85 @@
+// PerfilPublicoTrabajador.java
 import javax.swing.*;
 import java.awt.*;
+import java.sql.*;
 
-public class PerfilPublicoTrabajador extends JFrame {
+public class PerfilPublicoTrabajador extends JPanel {
 
-    private final Color COLOR_MENU   = Color.decode("#243A69");
-    private final Color COLOR_SEC    = Color.decode("#5B88A5");
-    private final Color COLOR_ACENTO = Color.decode("#9B73A6");
-    private final Color COLOR_FONDO  = Color.decode("#D4CDC5");
-    private final Color COLOR_BLANCO = Color.WHITE;
+    private final Color COLOR_MENU = Color.decode("#243A69");
 
     public PerfilPublicoTrabajador() {
-        setTitle("Work Bridge - Perfil del Candidato");
-        setSize(1400, 900);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
         setLayout(new BorderLayout());
-
-        add(crearSidebar("Mis Vacantes"), BorderLayout.WEST);
-
-        JPanel contenido = new JPanel();
-        contenido.setBackground(new Color(245, 247, 250));
-        contenido.setLayout(null);
+        setBackground(new Color(245, 247, 250));
 
         JLabel lblTitulo = new JLabel("Perfil del Candidato");
         lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        lblTitulo.setBounds(30, 15, 400, 35);
-        contenido.add(lblTitulo);
+        lblTitulo.setBorder(BorderFactory.createEmptyBorder(15, 30, 10, 0));
+        add(lblTitulo, BorderLayout.NORTH);
 
-        add(contenido, BorderLayout.CENTER);
+        JPanel panelInfo = new JPanel(null);
+        panelInfo.setBackground(Color.WHITE);
+        add(panelInfo, BorderLayout.CENTER);
+
+        // Carga el primer trabajador disponible como ejemplo
+        // En integración real recibir el usuario_id como parámetro del constructor
+        cargarPerfil(panelInfo);
     }
 
-    private JPanel crearSidebar(String activo) {
-        JPanel sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(230, 900));
-        sidebar.setBackground(COLOR_MENU);
-        sidebar.setLayout(null);
+    private void cargarPerfil(JPanel panel) {
+        String sql = "SELECT u.nombre, u.apellido, u.email, u.departamento, u.municipio, " +
+                     "p.resumen, p.nivel_experiencia, p.modalidad_preferida, p.disponible " +
+                     "FROM usuarios u JOIN perfiles_trabajador p ON u.id = p.usuario_id LIMIT 1";
+        try (Connection con = ConexionDB.getConexion();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            if (rs.next()) {
+                String nombre    = rs.getString("nombre") + " " + rs.getString("apellido");
+                String email     = rs.getString("email");
+                String ubicacion = rs.getString("departamento") + ", " + rs.getString("municipio");
+                String resumen   = rs.getString("resumen");
+                String nivel     = rs.getString("nivel_experiencia");
+                String modalidad = rs.getString("modalidad_preferida");
+                boolean disponible = rs.getBoolean("disponible");
 
-        JLabel logo = new JLabel("<html><b><font color='white' size='13'>Work<br>Bridge</font></b></html>");
-        logo.setBounds(20, 20, 160, 60);
-        sidebar.add(logo);
+                JLabel lNombre = new JLabel(nombre);
+                lNombre.setFont(new Font("Segoe UI", Font.BOLD, 20));
+                lNombre.setBounds(40, 30, 500, 30);
+                panel.add(lNombre);
 
-        String[] items = {"Inicio", "Mi empresa", "Mis Vacantes", "Postulaciones", "Entrevistas", "Comunicaciones", "Notificaciones"};
-        int y = 110;
-        for (String item : items) {
-            JButton btn = new JButton(item);
-            btn.setBounds(10, y, 210, 36);
-            btn.setBackground(item.equals(activo) ? COLOR_ACENTO : COLOR_MENU);
-            btn.setForeground(Color.WHITE);
-            btn.setBorderPainted(false);
-            btn.setFocusPainted(false);
-            btn.setHorizontalAlignment(SwingConstants.LEFT);
-            btn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-            sidebar.add(btn);
-            y += 44;
+                agregarCampo(panel, "Correo:",      email,     80);
+                agregarCampo(panel, "Ubicación:",   ubicacion, 120);
+                agregarCampo(panel, "Nivel:",       nivel,     160);
+                agregarCampo(panel, "Modalidad:",   modalidad, 200);
+                agregarCampo(panel, "Disponible:",  disponible ? "Sí" : "No", 240);
+
+                JLabel lResumen = new JLabel("<html><b>Resumen:</b><br>" + (resumen != null ? resumen : "Sin resumen") + "</html>");
+                lResumen.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+                lResumen.setBounds(40, 290, 700, 80);
+                panel.add(lResumen);
+            } else {
+                JLabel l = new JLabel("No se encontró perfil de trabajador.");
+                l.setBounds(40, 40, 400, 30);
+                panel.add(l);
+            }
+        } catch (SQLException ex) {
+            JLabel l = new JLabel("Error al cargar perfil: " + ex.getMessage());
+            l.setBounds(40, 40, 600, 30);
+            panel.add(l);
         }
+    }
 
-        return sidebar;
+    private void agregarCampo(JPanel panel, String etiqueta, String valor, int y) {
+        JLabel lbl = new JLabel("<html><b>" + etiqueta + "</b> " + (valor != null ? valor : "—") + "</html>");
+        lbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        lbl.setBounds(40, y, 600, 25);
+        panel.add(lbl);
     }
 
     public static void main(String[] args) {
-        try {
-            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (Exception e) {}
-        SwingUtilities.invokeLater(() -> new PerfilPublicoTrabajador().setVisible(true));
+        JFrame f = new JFrame("Perfil Trabajador");
+        f.setSize(900, 600);
+        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        f.add(new PerfilPublicoTrabajador());
+        f.setVisible(true);
     }
 }
