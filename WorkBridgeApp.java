@@ -4,10 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class WorkBridgeApp extends JFrame {
+
     private CardLayout cardLayout;
     private JPanel mainPanel;
     private Map<String, Component> screens;
-    private String currentRole = null;
 
     public WorkBridgeApp() {
         setTitle("Work Bridge - Sistema Unificado");
@@ -21,13 +21,16 @@ public class WorkBridgeApp extends JFrame {
         screens = new HashMap<>();
 
         initializeScreens();
+
         add(mainPanel);
-        setVisible(true);
 
         mostrarPantalla("registro");
+
+        setVisible(true);
     }
 
     private void initializeScreens() {
+
         // Pantallas principales del trabajador
         screens.put("registro", new Registro());
         screens.put("publicaciones", new Publicaciones());
@@ -44,24 +47,23 @@ public class WorkBridgeApp extends JFrame {
         screens.put("dashboardAdmin", new DashboardAdmin());
         screens.put("gestionUsuarios", new GestionUsuarios());
 
-        // Pantallas del dashboard empresarial
+        // Dashboard empresarial
         screens.put("dashboardEmpresa", crearDashboardEmpresa());
 
-        // Agregar todas las pantallas al panel principal
+        // Agregar pantallas al CardLayout
         for (Map.Entry<String, Component> entry : screens.entrySet()) {
             mainPanel.add(entry.getValue(), entry.getKey());
         }
     }
 
     private JPanel crearDashboardEmpresa() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
+        JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
 
-        // Aquí puedes integrar el DashboardEmpresa real cuando esté disponible
         JLabel label = new JLabel("Dashboard Empresarial");
         label.setFont(new Font("Segoe UI", Font.BOLD, 24));
         label.setHorizontalAlignment(SwingConstants.CENTER);
+
         panel.add(label, BorderLayout.CENTER);
 
         return panel;
@@ -76,6 +78,7 @@ public class WorkBridgeApp extends JFrame {
     }
 
     public static void main(String[] args) {
+
         try {
             for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
                 if ("Nimbus".equals(info.getName())) {
@@ -86,6 +89,10 @@ public class WorkBridgeApp extends JFrame {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        SwingUtilities.invokeLater(() -> new WorkBridgeApp());
+
+        SwingUtilities.invokeLater(() -> {
+            WorkBridgeApp app = new WorkBridgeApp();
+            app.setVisible(true);
+        });
     }
 }
